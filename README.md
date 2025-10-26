@@ -24,4 +24,4 @@ Pushing to the `main` branch triggers the `Deploy Web` workflow in `.github/work
 - Uploads the build artifacts
 - Publishes the `dist/` directory to GitHub Pages
 
-The site is served from the `gh-pages` branch and hosted under `/public/`. Adjust the `public_url` value in `Trunk.toml` if you use a custom domain or deploy to a different path.
+The site is served from the `gh-pages` branch and hosted under `/bodyecho/`. Adjust the `public_url` value in `Trunk.toml` if you use a custom domain or deploy to a different path.
