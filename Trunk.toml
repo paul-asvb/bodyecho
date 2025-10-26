@@ -2,4 +2,4 @@
 target = "wasm32-unknown-unknown"
 release = true
 dist = "dist"
-public_url = "/bodyecho/"
+public_url = "/public/"
