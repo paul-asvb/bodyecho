@@ -17,22 +17,26 @@ fn main() {
             ..default()
         }))
         .add_systems(Startup, setup)
-        .add_systems(Update, (update_loading_progress, loading_screen_system))
+        .add_systems(Update, (update_loading_progress, loading_screen_system, move_player))
         .run();
 }
 
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 
-    commands.spawn(SpriteBundle {
-        sprite: Sprite {
-            color: Color::srgb(0.2, 0.6, 0.9),
-            custom_size: Some(Vec2::new(200.0, 200.0)),
+    // Spawn player character
+    commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color: Color::srgb(0.2, 0.6, 0.9),
+                custom_size: Some(Vec2::new(50.0, 50.0)),
+                ..default()
+            },
+            transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..default()
         },
-        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        ..default()
-    });
+        Player { speed: 300.0 },
+    ));
 
     // Loading screen overlay
     commands
@@ -114,6 +118,45 @@ fn setup(mut commands: Commands) {
 #[cfg(target_arch = "wasm32")]
 fn init_panic_hook() {
     console_error_panic_hook::set_once();
+}
+
+// Player component
+#[derive(Component)]
+struct Player {
+    speed: f32,
+}
+
+// Movement system
+fn move_player(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut query: Query<(&mut Transform, &Player)>,
+    time: Res<Time>,
+) {
+    for (mut transform, player) in query.iter_mut() {
+        let mut direction = Vec3::ZERO;
+
+        // WASD controls
+        if keyboard_input.pressed(KeyCode::KeyW) {
+            direction.y += 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::KeyS) {
+            direction.y -= 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::KeyA) {
+            direction.x -= 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::KeyD) {
+            direction.x += 1.0;
+        }
+
+        // Normalize diagonal movement
+        if direction.length() > 0.0 {
+            direction = direction.normalize();
+        }
+
+        // Apply movement with player speed
+        transform.translation += direction * player.speed * time.delta_seconds();
+    }
 }
 
 #[derive(Resource, Default)]
