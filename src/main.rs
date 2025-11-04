@@ -21,22 +21,32 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
 
-    // Spawn player character
+    // Load character textures
+    let textures = CharacterTextures {
+        south: asset_server.load("characters/radiologist_south.png"),
+        north: asset_server.load("characters/radiologist_north.png"),
+        west: asset_server.load("characters/radiologist_west.png"),
+        east: asset_server.load("characters/radiologist_east.png"),
+    };
+
+    // Spawn player character with radiologist sprite
     commands.spawn((
         SpriteBundle {
-            sprite: Sprite {
-                color: Color::srgb(0.2, 0.6, 0.9),
-                custom_size: Some(Vec2::new(50.0, 50.0)),
-                ..default()
-            },
+            texture: textures.south.clone(),
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..default()
         },
-        Player { speed: 300.0 },
+        Player {
+            speed: 300.0,
+            direction: Direction::South,
+        },
     ));
+
+    // Store textures as resource
+    commands.insert_resource(textures);
 
     // Loading screen overlay
     commands
@@ -124,29 +134,65 @@ fn init_panic_hook() {
 #[derive(Component)]
 struct Player {
     speed: f32,
+    direction: Direction,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Direction {
+    South,
+    North,
+    West,
+    East,
+}
+
+#[derive(Resource)]
+struct CharacterTextures {
+    south: Handle<Image>,
+    north: Handle<Image>,
+    west: Handle<Image>,
+    east: Handle<Image>,
 }
 
 // Movement system
 fn move_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<(&mut Transform, &Player)>,
+    textures: Res<CharacterTextures>,
+    mut query: Query<(&mut Transform, &mut Player, &mut Handle<Image>)>,
     time: Res<Time>,
 ) {
-    for (mut transform, player) in query.iter_mut() {
+    for (mut transform, mut player, mut texture) in query.iter_mut() {
         let mut direction = Vec3::ZERO;
+        let mut new_facing: Option<Direction> = None;
 
-        // WASD controls
+        // WASD controls - prioritize last pressed direction for sprite
         if keyboard_input.pressed(KeyCode::KeyW) {
             direction.y += 1.0;
+            new_facing = Some(Direction::North);
         }
         if keyboard_input.pressed(KeyCode::KeyS) {
             direction.y -= 1.0;
+            new_facing = Some(Direction::South);
         }
         if keyboard_input.pressed(KeyCode::KeyA) {
             direction.x -= 1.0;
+            new_facing = Some(Direction::West);
         }
         if keyboard_input.pressed(KeyCode::KeyD) {
             direction.x += 1.0;
+            new_facing = Some(Direction::East);
+        }
+
+        // Update sprite direction if changed
+        if let Some(facing) = new_facing {
+            if player.direction != facing {
+                player.direction = facing;
+                *texture = match facing {
+                    Direction::South => textures.south.clone(),
+                    Direction::North => textures.north.clone(),
+                    Direction::West => textures.west.clone(),
+                    Direction::East => textures.east.clone(),
+                };
+            }
         }
 
         // Normalize diagonal movement
