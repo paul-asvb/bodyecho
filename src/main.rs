@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use std::collections::HashMap;
 
+const PLAYER_MOVEMENT_SPEED: f32 = 80.0;
+
 fn main() {
     #[cfg(target_arch = "wasm32")]
     init_panic_hook();
@@ -18,19 +20,19 @@ fn main() {
             ..default()
         }))
         .add_systems(Startup, setup)
-        .add_systems(Update, (
-            update_loading_progress,
-            loading_screen_system,
-            move_player,
-            animate_sprite
-        ))
+        .add_systems(
+            Update,
+            (
+                update_loading_progress,
+                loading_screen_system,
+                move_player,
+                animate_sprite,
+            ),
+        )
         .run();
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
 
     // Base path for character assets
@@ -54,14 +56,19 @@ fn setup(
 
     // Load idle animation frames (4 frames per direction)
     for direction in &directions {
-        let dir_str = format!("{:?}", direction).to_lowercase().replace("southeast", "south-east")
+        let dir_str = format!("{:?}", direction)
+            .to_lowercase()
+            .replace("southeast", "south-east")
             .replace("northeast", "north-east")
             .replace("southwest", "south-west")
             .replace("northwest", "north-west");
 
         let mut frames = Vec::new();
         for i in 0..4 {
-            let path = format!("{}animations/breathing-idle/{}/frame_{:03}.png", base_path, dir_str, i);
+            let path = format!(
+                "{}animations/breathing-idle/{}/frame_{:03}.png",
+                base_path, dir_str, i
+            );
             frames.push(asset_server.load(path));
         }
         idle_frames.insert(*direction, frames);
@@ -69,14 +76,19 @@ fn setup(
 
     // Load walk animation frames (6 frames per direction)
     for direction in &directions {
-        let dir_str = format!("{:?}", direction).to_lowercase().replace("southeast", "south-east")
+        let dir_str = format!("{:?}", direction)
+            .to_lowercase()
+            .replace("southeast", "south-east")
             .replace("northeast", "north-east")
             .replace("southwest", "south-west")
             .replace("northwest", "north-west");
 
         let mut frames = Vec::new();
         for i in 0..6 {
-            let path = format!("{}animations/walk/{}/frame_{:03}.png", base_path, dir_str, i);
+            let path = format!(
+                "{}animations/walk/{}/frame_{:03}.png",
+                base_path, dir_str, i
+            );
             frames.push(asset_server.load(path));
         }
         walk_frames.insert(*direction, frames);
@@ -96,7 +108,7 @@ fn setup(
             ..default()
         },
         Player {
-            speed: 300.0,
+            speed: PLAYER_MOVEMENT_SPEED,
             direction: Direction::South,
             state: AnimationState::Idle,
         },
@@ -251,7 +263,12 @@ struct AnimationFrameIndex(usize);
 fn move_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     animations: Res<CharacterAnimations>,
-    mut query: Query<(&mut Transform, &mut Player, &mut Handle<Image>, &mut AnimationFrameIndex)>,
+    mut query: Query<(
+        &mut Transform,
+        &mut Player,
+        &mut Handle<Image>,
+        &mut AnimationFrameIndex,
+    )>,
     time: Res<Time>,
 ) {
     for (mut transform, mut player, mut texture, mut frame_index) in query.iter_mut() {
@@ -288,7 +305,8 @@ fn move_player(
 
         // Update animation if state or direction changed
         let state_changed = player.state != new_state;
-        let direction_changed = new_direction.is_some() && new_direction.unwrap() != player.direction;
+        let direction_changed =
+            new_direction.is_some() && new_direction.unwrap() != player.direction;
 
         if state_changed || direction_changed {
             if let Some(dir) = new_direction {
@@ -325,7 +343,12 @@ fn move_player(
 fn animate_sprite(
     time: Res<Time>,
     animations: Res<CharacterAnimations>,
-    mut query: Query<(&mut AnimationTimer, &mut AnimationFrameIndex, &mut Handle<Image>, &Player)>,
+    mut query: Query<(
+        &mut AnimationTimer,
+        &mut AnimationFrameIndex,
+        &mut Handle<Image>,
+        &Player,
+    )>,
 ) {
     for (mut timer, mut frame_index, mut texture, player) in query.iter_mut() {
         timer.0.tick(time.delta());
@@ -365,10 +388,7 @@ struct ProgressBar;
 #[derive(Component)]
 struct LoadingText;
 
-fn update_loading_progress(
-    time: Res<Time>,
-    mut loading_progress: ResMut<LoadingProgress>,
-) {
+fn update_loading_progress(time: Res<Time>, mut loading_progress: ResMut<LoadingProgress>) {
     if loading_progress.progress < 100.0 {
         loading_progress.timer += time.delta_seconds();
         // Simulate loading - reaches 100% after 2 seconds
