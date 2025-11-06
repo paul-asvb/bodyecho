@@ -17,36 +17,64 @@ fn main() {
             ..default()
         }))
         .add_systems(Startup, setup)
-        .add_systems(Update, (update_loading_progress, loading_screen_system, move_player))
+        .add_systems(Update, (
+            update_loading_progress,
+            loading_screen_system,
+            move_player,
+            animate_sprite
+        ))
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
+) {
     commands.spawn(Camera2dBundle::default());
 
-    // Load character textures
-    let textures = CharacterTextures {
-        south: asset_server.load("characters/radiologist_south.png"),
-        north: asset_server.load("characters/radiologist_north.png"),
-        west: asset_server.load("characters/radiologist_west.png"),
-        east: asset_server.load("characters/radiologist_east.png"),
+    // Create texture atlas layouts for animations
+    let idle_layout = TextureAtlasLayout::from_grid(UVec2::new(64, 64), 4, 1, None, None);
+    let idle_atlas_handle = texture_atlases.add(idle_layout);
+
+    let walk_layout = TextureAtlasLayout::from_grid(UVec2::new(64, 64), 6, 1, None, None);
+    let walk_atlas_handle = texture_atlases.add(walk_layout);
+
+    // Load animation textures for each direction
+    let animations = CharacterAnimations {
+        idle_south: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/breathing-idle-south.png"),
+        idle_north: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/breathing-idle-north.png"),
+        idle_west: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/breathing-idle-west.png"),
+        idle_east: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/breathing-idle-east.png"),
+        walk_south: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/walking-south.png"),
+        walk_north: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/walking-north.png"),
+        walk_west: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/walking-west.png"),
+        walk_east: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/walking-east.png"),
+        idle_atlas: idle_atlas_handle.clone(),
+        walk_atlas: walk_atlas_handle.clone(),
     };
 
-    // Spawn player character with radiologist sprite
+    // Spawn player character with animation
     commands.spawn((
         SpriteBundle {
-            texture: textures.south.clone(),
+            texture: animations.idle_south.clone(),
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..default()
+        },
+        TextureAtlas {
+            layout: idle_atlas_handle,
+            index: 0,
         },
         Player {
             speed: 300.0,
             direction: Direction::South,
+            state: AnimationState::Idle,
         },
+        AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
     ));
 
-    // Store textures as resource
-    commands.insert_resource(textures);
+    // Store animations as resource
+    commands.insert_resource(animations);
 
     // Loading screen overlay
     commands
@@ -135,6 +163,7 @@ fn init_panic_hook() {
 struct Player {
     speed: f32,
     direction: Direction,
+    state: AnimationState,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -145,22 +174,37 @@ enum Direction {
     East,
 }
 
-#[derive(Resource)]
-struct CharacterTextures {
-    south: Handle<Image>,
-    north: Handle<Image>,
-    west: Handle<Image>,
-    east: Handle<Image>,
+#[derive(Clone, Copy, PartialEq)]
+enum AnimationState {
+    Idle,
+    Walking,
 }
+
+#[derive(Resource)]
+struct CharacterAnimations {
+    idle_south: Handle<Image>,
+    idle_north: Handle<Image>,
+    idle_west: Handle<Image>,
+    idle_east: Handle<Image>,
+    walk_south: Handle<Image>,
+    walk_north: Handle<Image>,
+    walk_west: Handle<Image>,
+    walk_east: Handle<Image>,
+    idle_atlas: Handle<TextureAtlasLayout>,
+    walk_atlas: Handle<TextureAtlasLayout>,
+}
+
+#[derive(Component)]
+struct AnimationTimer(Timer);
 
 // Movement system
 fn move_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    textures: Res<CharacterTextures>,
-    mut query: Query<(&mut Transform, &mut Player, &mut Handle<Image>)>,
+    animations: Res<CharacterAnimations>,
+    mut query: Query<(&mut Transform, &mut Player, &mut Handle<Image>, &mut TextureAtlas)>,
     time: Res<Time>,
 ) {
-    for (mut transform, mut player, mut texture) in query.iter_mut() {
+    for (mut transform, mut player, mut texture, mut atlas) in query.iter_mut() {
         let mut direction = Vec3::ZERO;
         let mut new_facing: Option<Direction> = None;
 
@@ -182,26 +226,83 @@ fn move_player(
             new_facing = Some(Direction::East);
         }
 
-        // Update sprite direction if changed
-        if let Some(facing) = new_facing {
-            if player.direction != facing {
-                player.direction = facing;
-                *texture = match facing {
-                    Direction::South => textures.south.clone(),
-                    Direction::North => textures.north.clone(),
-                    Direction::West => textures.west.clone(),
-                    Direction::East => textures.east.clone(),
-                };
+        // Determine animation state
+        let is_moving = direction.length() > 0.0;
+        let new_state = if is_moving {
+            AnimationState::Walking
+        } else {
+            AnimationState::Idle
+        };
+
+        // Update animation if state or direction changed
+        if player.state != new_state || new_facing.is_some() {
+            let facing = new_facing.unwrap_or(player.direction);
+            player.direction = facing;
+            player.state = new_state;
+
+            // Update texture and atlas based on state and direction
+            match (new_state, facing) {
+                (AnimationState::Idle, Direction::South) => {
+                    *texture = animations.idle_south.clone();
+                    atlas.layout = animations.idle_atlas.clone();
+                }
+                (AnimationState::Idle, Direction::North) => {
+                    *texture = animations.idle_north.clone();
+                    atlas.layout = animations.idle_atlas.clone();
+                }
+                (AnimationState::Idle, Direction::West) => {
+                    *texture = animations.idle_west.clone();
+                    atlas.layout = animations.idle_atlas.clone();
+                }
+                (AnimationState::Idle, Direction::East) => {
+                    *texture = animations.idle_east.clone();
+                    atlas.layout = animations.idle_atlas.clone();
+                }
+                (AnimationState::Walking, Direction::South) => {
+                    *texture = animations.walk_south.clone();
+                    atlas.layout = animations.walk_atlas.clone();
+                }
+                (AnimationState::Walking, Direction::North) => {
+                    *texture = animations.walk_north.clone();
+                    atlas.layout = animations.walk_atlas.clone();
+                }
+                (AnimationState::Walking, Direction::West) => {
+                    *texture = animations.walk_west.clone();
+                    atlas.layout = animations.walk_atlas.clone();
+                }
+                (AnimationState::Walking, Direction::East) => {
+                    *texture = animations.walk_east.clone();
+                    atlas.layout = animations.walk_atlas.clone();
+                }
             }
+            atlas.index = 0;
         }
 
         // Normalize diagonal movement
-        if direction.length() > 0.0 {
+        if is_moving {
             direction = direction.normalize();
         }
 
         // Apply movement with player speed
         transform.translation += direction * player.speed * time.delta_seconds();
+    }
+}
+
+// Animation system
+fn animate_sprite(
+    time: Res<Time>,
+    mut query: Query<(&mut AnimationTimer, &mut TextureAtlas, &Player)>,
+) {
+    for (mut timer, mut atlas, player) in query.iter_mut() {
+        timer.0.tick(time.delta());
+
+        if timer.0.just_finished() {
+            let max_frames = match player.state {
+                AnimationState::Idle => 4,
+                AnimationState::Walking => 6,
+            };
+            atlas.index = (atlas.index + 1) % max_frames;
+        }
     }
 }
 
