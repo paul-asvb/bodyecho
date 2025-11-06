@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use std::collections::HashMap;
 
 fn main() {
     #[cfg(target_arch = "wasm32")]
@@ -29,48 +30,78 @@ fn main() {
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     commands.spawn(Camera2dBundle::default());
 
-    // Create texture atlas layouts for animations
-    let idle_layout = TextureAtlasLayout::from_grid(UVec2::new(64, 64), 4, 1, None, None);
-    let idle_atlas_handle = texture_atlases.add(idle_layout);
+    // Base path for character assets
+    let base_path = "characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/";
 
-    let walk_layout = TextureAtlasLayout::from_grid(UVec2::new(64, 64), 6, 1, None, None);
-    let walk_atlas_handle = texture_atlases.add(walk_layout);
+    // Load all frames based on the directory structure
+    let mut idle_frames = HashMap::new();
+    let mut walk_frames = HashMap::new();
 
-    // Load animation textures for each direction
+    // Define the directions and their frame counts
+    let directions = [
+        Direction::South,
+        Direction::SouthEast,
+        Direction::East,
+        Direction::NorthEast,
+        Direction::North,
+        Direction::NorthWest,
+        Direction::West,
+        Direction::SouthWest,
+    ];
+
+    // Load idle animation frames (4 frames per direction)
+    for direction in &directions {
+        let dir_str = format!("{:?}", direction).to_lowercase().replace("southeast", "south-east")
+            .replace("northeast", "north-east")
+            .replace("southwest", "south-west")
+            .replace("northwest", "north-west");
+
+        let mut frames = Vec::new();
+        for i in 0..4 {
+            let path = format!("{}animations/breathing-idle/{}/frame_{:03}.png", base_path, dir_str, i);
+            frames.push(asset_server.load(path));
+        }
+        idle_frames.insert(*direction, frames);
+    }
+
+    // Load walk animation frames (6 frames per direction)
+    for direction in &directions {
+        let dir_str = format!("{:?}", direction).to_lowercase().replace("southeast", "south-east")
+            .replace("northeast", "north-east")
+            .replace("southwest", "south-west")
+            .replace("northwest", "north-west");
+
+        let mut frames = Vec::new();
+        for i in 0..6 {
+            let path = format!("{}animations/walk/{}/frame_{:03}.png", base_path, dir_str, i);
+            frames.push(asset_server.load(path));
+        }
+        walk_frames.insert(*direction, frames);
+    }
+
     let animations = CharacterAnimations {
-        idle_south: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/breathing-idle-south.png"),
-        idle_north: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/breathing-idle-north.png"),
-        idle_west: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/breathing-idle-west.png"),
-        idle_east: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/breathing-idle-east.png"),
-        walk_south: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/walking-south.png"),
-        walk_north: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/walking-north.png"),
-        walk_west: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/walking-west.png"),
-        walk_east: asset_server.load("characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/walking-east.png"),
-        idle_atlas: idle_atlas_handle.clone(),
-        walk_atlas: walk_atlas_handle.clone(),
+        idle_frames: idle_frames.clone(),
+        walk_frames: walk_frames.clone(),
     };
 
-    // Spawn player character with animation
+    // Spawn player character with first idle frame
+    let first_frame = idle_frames.get(&Direction::South).unwrap()[0].clone();
     commands.spawn((
         SpriteBundle {
-            texture: animations.idle_south.clone(),
+            texture: first_frame,
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..default()
-        },
-        TextureAtlas {
-            layout: idle_atlas_handle,
-            index: 0,
         },
         Player {
             speed: 300.0,
             direction: Direction::South,
             state: AnimationState::Idle,
         },
-        AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+        AnimationTimer(Timer::from_seconds(0.15, TimerMode::Repeating)),
+        AnimationFrameIndex(0),
     ));
 
     // Store animations as resource
@@ -166,12 +197,36 @@ struct Player {
     state: AnimationState,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug, Eq, Hash)]
 enum Direction {
     South,
-    North,
-    West,
+    SouthEast,
     East,
+    NorthEast,
+    North,
+    NorthWest,
+    West,
+    SouthWest,
+}
+
+impl Direction {
+    fn from_movement(x: f32, y: f32) -> Self {
+        let angle = y.atan2(x);
+        let degrees = angle.to_degrees();
+
+        // Convert angle to direction (8-way)
+        match degrees {
+            d if d >= -22.5 && d < 22.5 => Direction::East,
+            d if d >= 22.5 && d < 67.5 => Direction::NorthEast,
+            d if d >= 67.5 && d < 112.5 => Direction::North,
+            d if d >= 112.5 && d < 157.5 => Direction::NorthWest,
+            d if d >= 157.5 || d < -157.5 => Direction::West,
+            d if d >= -157.5 && d < -112.5 => Direction::SouthWest,
+            d if d >= -112.5 && d < -67.5 => Direction::South,
+            d if d >= -67.5 && d < -22.5 => Direction::SouthEast,
+            _ => Direction::South,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -182,126 +237,115 @@ enum AnimationState {
 
 #[derive(Resource)]
 struct CharacterAnimations {
-    idle_south: Handle<Image>,
-    idle_north: Handle<Image>,
-    idle_west: Handle<Image>,
-    idle_east: Handle<Image>,
-    walk_south: Handle<Image>,
-    walk_north: Handle<Image>,
-    walk_west: Handle<Image>,
-    walk_east: Handle<Image>,
-    idle_atlas: Handle<TextureAtlasLayout>,
-    walk_atlas: Handle<TextureAtlasLayout>,
+    idle_frames: HashMap<Direction, Vec<Handle<Image>>>,
+    walk_frames: HashMap<Direction, Vec<Handle<Image>>>,
 }
 
 #[derive(Component)]
 struct AnimationTimer(Timer);
 
+#[derive(Component)]
+struct AnimationFrameIndex(usize);
+
 // Movement system
 fn move_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     animations: Res<CharacterAnimations>,
-    mut query: Query<(&mut Transform, &mut Player, &mut Handle<Image>, &mut TextureAtlas)>,
+    mut query: Query<(&mut Transform, &mut Player, &mut Handle<Image>, &mut AnimationFrameIndex)>,
     time: Res<Time>,
 ) {
-    for (mut transform, mut player, mut texture, mut atlas) in query.iter_mut() {
-        let mut direction = Vec3::ZERO;
-        let mut new_facing: Option<Direction> = None;
+    for (mut transform, mut player, mut texture, mut frame_index) in query.iter_mut() {
+        let mut movement = Vec2::ZERO;
 
-        // WASD controls - prioritize last pressed direction for sprite
+        // WASD controls
         if keyboard_input.pressed(KeyCode::KeyW) {
-            direction.y += 1.0;
-            new_facing = Some(Direction::North);
+            movement.y += 1.0;
         }
         if keyboard_input.pressed(KeyCode::KeyS) {
-            direction.y -= 1.0;
-            new_facing = Some(Direction::South);
+            movement.y -= 1.0;
         }
         if keyboard_input.pressed(KeyCode::KeyA) {
-            direction.x -= 1.0;
-            new_facing = Some(Direction::West);
+            movement.x -= 1.0;
         }
         if keyboard_input.pressed(KeyCode::KeyD) {
-            direction.x += 1.0;
-            new_facing = Some(Direction::East);
+            movement.x += 1.0;
         }
 
         // Determine animation state
-        let is_moving = direction.length() > 0.0;
+        let is_moving = movement.length() > 0.0;
         let new_state = if is_moving {
             AnimationState::Walking
         } else {
             AnimationState::Idle
         };
 
+        // Calculate facing direction from movement
+        let new_direction = if is_moving {
+            Some(Direction::from_movement(movement.x, movement.y))
+        } else {
+            None
+        };
+
         // Update animation if state or direction changed
-        if player.state != new_state || new_facing.is_some() {
-            let facing = new_facing.unwrap_or(player.direction);
-            player.direction = facing;
+        let state_changed = player.state != new_state;
+        let direction_changed = new_direction.is_some() && new_direction.unwrap() != player.direction;
+
+        if state_changed || direction_changed {
+            if let Some(dir) = new_direction {
+                player.direction = dir;
+            }
             player.state = new_state;
 
-            // Update texture and atlas based on state and direction
-            match (new_state, facing) {
-                (AnimationState::Idle, Direction::South) => {
-                    *texture = animations.idle_south.clone();
-                    atlas.layout = animations.idle_atlas.clone();
-                }
-                (AnimationState::Idle, Direction::North) => {
-                    *texture = animations.idle_north.clone();
-                    atlas.layout = animations.idle_atlas.clone();
-                }
-                (AnimationState::Idle, Direction::West) => {
-                    *texture = animations.idle_west.clone();
-                    atlas.layout = animations.idle_atlas.clone();
-                }
-                (AnimationState::Idle, Direction::East) => {
-                    *texture = animations.idle_east.clone();
-                    atlas.layout = animations.idle_atlas.clone();
-                }
-                (AnimationState::Walking, Direction::South) => {
-                    *texture = animations.walk_south.clone();
-                    atlas.layout = animations.walk_atlas.clone();
-                }
-                (AnimationState::Walking, Direction::North) => {
-                    *texture = animations.walk_north.clone();
-                    atlas.layout = animations.walk_atlas.clone();
-                }
-                (AnimationState::Walking, Direction::West) => {
-                    *texture = animations.walk_west.clone();
-                    atlas.layout = animations.walk_atlas.clone();
-                }
-                (AnimationState::Walking, Direction::East) => {
-                    *texture = animations.walk_east.clone();
-                    atlas.layout = animations.walk_atlas.clone();
+            // Update to first frame of new animation
+            frame_index.0 = 0;
+            let frames = match new_state {
+                AnimationState::Idle => &animations.idle_frames,
+                AnimationState::Walking => &animations.walk_frames,
+            };
+
+            if let Some(direction_frames) = frames.get(&player.direction) {
+                if let Some(first_frame) = direction_frames.first() {
+                    *texture = first_frame.clone();
                 }
             }
-            atlas.index = 0;
         }
 
         // Normalize diagonal movement
         if is_moving {
-            direction = direction.normalize();
+            movement = movement.normalize();
         }
 
         // Apply movement with player speed
-        transform.translation += direction * player.speed * time.delta_seconds();
+        transform.translation.x += movement.x * player.speed * time.delta_seconds();
+        transform.translation.y += movement.y * player.speed * time.delta_seconds();
     }
 }
 
 // Animation system
 fn animate_sprite(
     time: Res<Time>,
-    mut query: Query<(&mut AnimationTimer, &mut TextureAtlas, &Player)>,
+    animations: Res<CharacterAnimations>,
+    mut query: Query<(&mut AnimationTimer, &mut AnimationFrameIndex, &mut Handle<Image>, &Player)>,
 ) {
-    for (mut timer, mut atlas, player) in query.iter_mut() {
+    for (mut timer, mut frame_index, mut texture, player) in query.iter_mut() {
         timer.0.tick(time.delta());
 
         if timer.0.just_finished() {
-            let max_frames = match player.state {
-                AnimationState::Idle => 4,
-                AnimationState::Walking => 6,
+            // Get the appropriate frame list based on state and direction
+            let frames = match player.state {
+                AnimationState::Idle => &animations.idle_frames,
+                AnimationState::Walking => &animations.walk_frames,
             };
-            atlas.index = (atlas.index + 1) % max_frames;
+
+            if let Some(direction_frames) = frames.get(&player.direction) {
+                // Advance to next frame
+                frame_index.0 = (frame_index.0 + 1) % direction_frames.len();
+
+                // Update the texture
+                if let Some(new_frame) = direction_frames.get(frame_index.0) {
+                    *texture = new_frame.clone();
+                }
+            }
         }
     }
 }
