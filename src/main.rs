@@ -35,6 +35,14 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
 
+    // Spawn background
+    commands.spawn(SpriteBundle {
+        texture: asset_server.load("bg.jpg"),
+        transform: Transform::from_xyz(0.0, 0.0, -10.0)
+            .with_scale(Vec3::splat(3.0)),
+        ..default()
+    });
+
     // Base path for character assets
     let base_path = "characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/";
 
