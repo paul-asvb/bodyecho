@@ -38,8 +38,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Spawn background
     commands.spawn(SpriteBundle {
         texture: asset_server.load("bg.jpg"),
-        transform: Transform::from_xyz(0.0, 0.0, -10.0)
-            .with_scale(Vec3::splat(3.0)),
+        transform: Transform::from_xyz(0.0, 0.0, -10.0).with_scale(Vec3::splat(3.0)),
+        ..default()
+    });
+
+    // Spawn furniture
+    commands.spawn(SpriteBundle {
+        texture: asset_server.load("hospital/furniture_raw.png"),
+        transform: Transform::from_xyz(0.0, 0.0, -5.0).with_scale(Vec3::splat(0.2)),
         ..default()
     });
 
