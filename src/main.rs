@@ -35,19 +35,25 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
 
-    // Spawn background
-    commands.spawn(SpriteBundle {
-        texture: asset_server.load("bg.jpg"),
-        transform: Transform::from_xyz(0.0, 0.0, -10.0).with_scale(Vec3::splat(3.0)),
-        ..default()
-    });
+    // Spawn repeating background tiles in a grid
+    let tile_texture = asset_server.load("tiles/hospital_floor_tile.png");
+    let tile_scale = 0.1;
+    let tile_size = 1024.0 * tile_scale; // 1024px at 0.1 scale = 102.4 units
+    let grid_size = 30; // 30x30 grid of tiles
 
-    // Spawn furniture
-    commands.spawn(SpriteBundle {
-        texture: asset_server.load("hospital/furniture_raw.png"),
-        transform: Transform::from_xyz(0.0, 0.0, -5.0).with_scale(Vec3::splat(0.2)),
-        ..default()
-    });
+    for x in -grid_size..grid_size {
+        for y in -grid_size..grid_size {
+            commands.spawn(SpriteBundle {
+                texture: tile_texture.clone(),
+                transform: Transform::from_xyz(
+                    x as f32 * tile_size,
+                    y as f32 * tile_size,
+                    -10.0,
+                ).with_scale(Vec3::splat(tile_scale)),
+                ..default()
+            });
+        }
+    }
 
     // Base path for character assets
     let base_path = "characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/";
