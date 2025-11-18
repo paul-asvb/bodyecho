@@ -1,0 +1,17 @@
+{
+  "name": "Hospital Floor Tile",
+  "type": "tile",
+  "size": {
+    "width": 1024,
+    "height": 1024
+  },
+  "tileable": true,
+  "description": "Worn and aged hospital floor tile with visible grout lines, subtle dirt and stains, and slight reflective surface. Light cream/off-white color with gray grout. Suitable for medical/hospital environments in top-down games.",
+  "style": "pixel_art",
+  "tags": ["hospital", "floor", "tile", "medical", "worn", "aged", "linoleum"],
+  "generated": {
+    "model": "google/imagen-4",
+    "date": "2025-11-18",
+    "prompt": "A seamless tileable 64x64 pixel art hospital floor tile texture. Worn and aged linoleum appearance with visible grout lines between tiles. Light cream or off-white tile color with gray grout lines. Subtle dirt marks, scuff marks, and stains showing realistic wear and aging. Slight reflective surface suggesting polished floor with minimal shine. Top-down orthographic view. Clean retro pixel art style suitable for a top-down 2D game. The tile should be perfectly tileable on all edges to create a seamless floor pattern."
+  }
+}

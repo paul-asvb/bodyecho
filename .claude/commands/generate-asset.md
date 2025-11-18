@@ -2,7 +2,7 @@
 description: Generate game assets using Imagen-4 via Replicate API
 ---
 
-Generate game assets for the Bodyecho game using Imagen-4 hosted on Replicate.
+Generate game assets for the Bodyecho game using Imagen-4 hosted on Replicate via direct API calls.
 
 ## Task Details
 
@@ -35,8 +35,8 @@ For **other** asset types:
    - Direction/view information (for characters)
    - Game aesthetic context
 
-3. Use the MCP Replicate tool to generate images with Imagen-4:
-   - Model: `google-deepmind/imagen-4`
+3. Use the Replicate API via curl to generate images with Imagen-4:
+   - Model: `google/imagen-4`
    - For characters: Generate each directional view separately
    - Save images to the appropriate directory structure
 
@@ -55,7 +55,13 @@ For **other** asset types:
        └── south-west.png
    ```
 
-5. Create metadata.json with:
+   For tiles and other assets, save to:
+   ```
+   assets/tiles/[asset_name].png
+   assets/tiles/[asset_name].json
+   ```
+
+5. For characters, create metadata.json with:
    ```json
    {
      "name": "[Asset Name]",
@@ -63,6 +69,24 @@ For **other** asset types:
      "directions": ["south", "south-east", "east", "north-east", "north", "north-west", "west", "south-west"],
      "animations": {},
      "description": "[User's description]"
+   }
+   ```
+
+   For tiles, create a JSON metadata file with:
+   ```json
+   {
+     "name": "[Asset Name]",
+     "type": "tile",
+     "size": {"width": 1024, "height": 1024},
+     "tileable": true,
+     "description": "[Description]",
+     "style": "pixel_art",
+     "tags": ["tag1", "tag2"],
+     "generated": {
+       "model": "google/imagen-4",
+       "date": "YYYY-MM-DD",
+       "prompt": "[Generation prompt]"
+     }
    }
    ```
 
@@ -74,11 +98,31 @@ For **other** asset types:
 - For characters, mention in prompts: "viewed from [direction], top-down perspective"
 - Keep pixel art style consistent with existing game assets
 
-## MCP Tool Usage
+## Replicate API Usage
 
-Use the MCP Replicate tools to interact with the Imagen-4 model. The typical flow:
-1. Call the replicate tool with the appropriate model ID and parameters
-2. Wait for generation to complete
-3. Download and save the generated images
+Use curl with the Bash tool to interact with the Imagen-4 model via the Replicate API. The typical flow:
+
+1. Generate the image using curl with the `Prefer: wait` header to wait for completion:
+   ```bash
+   curl --silent --show-error https://api.replicate.com/v1/models/google/imagen-4/predictions \
+       --request POST \
+       --header "Authorization: Bearer $REPLICATE_API_TOKEN" \
+       --header "Content-Type: application/json" \
+       --header "Prefer: wait" \
+       --data @- <<'EOM'
+   {
+       "input": {
+         "prompt": "[Your detailed prompt here]",
+         "aspect_ratio": "1:1",
+         "safety_filter_level": "block_medium_and_above"
+       }
+   }
+   EOM
+   ```
+
+2. The API will return JSON with an `output` field containing the image URL
+3. Download the image using curl: `curl -o [output_file] [image_url]`
+4. Convert to PNG if needed: `ffmpeg -i [input.jpg] [output.png] -y`
+5. Save to the appropriate directory structure
 
 Begin by gathering the necessary information from the user and then proceed with generation.
