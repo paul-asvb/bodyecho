@@ -1,0 +1,42 @@
+{
+  "radiology_game_palette": {
+    "primary_colors": [
+      {
+        "name": "X-Ray Blue",
+        "hex": "#148FFF"
+      },
+      {
+        "name": "Deep Space Navy",
+        "hex": "#04142F"
+      }
+    ],
+    "secondary_colors": [
+      {
+        "name": "Radiation Green Glow",
+        "hex": "#33FF98"
+      },
+      {
+        "name": "Ultrasound Gray",
+        "hex": "#C8CCD4"
+      },
+      {
+        "name": "CT Orange Accent",
+        "hex": "#FF843D"
+      }
+    ],
+    "special_effects_colors": [
+      {
+        "name": "Neon Cyan Glow",
+        "hex": "#4DFFFF"
+      },
+      {
+        "name": "Magenta Energy",
+        "hex": "#FF4DE9"
+      },
+      {
+        "name": "Dark Graphite",
+        "hex": "#141516"
+      }
+    ]
+  }
+}

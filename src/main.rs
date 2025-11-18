@@ -144,7 +144,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 flex_direction: FlexDirection::Column,
                 ..default()
             },
-            background_color: BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.85)),
+            background_color: BackgroundColor(Color::srgb(0.0157, 0.0784, 0.1843)), // Deep Space Navy
             ..default()
         })
         .insert(LoadingScreen)
@@ -154,7 +154,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 "Bodyecho",
                 TextStyle {
                     font_size: 72.0,
-                    color: Color::WHITE,
+                    color: Color::srgb(0.302, 1.0, 1.0), // Neon Cyan Glow
                     ..default()
                 },
             ));
@@ -177,8 +177,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         border: UiRect::all(Val::Px(2.0)),
                         ..default()
                     },
-                    background_color: BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
-                    border_color: BorderColor(Color::srgb(0.6, 0.6, 0.6)),
+                    background_color: BackgroundColor(Color::srgb(0.0784, 0.0824, 0.0863)), // Dark Graphite
+                    border_color: BorderColor(Color::srgb(0.0784, 0.5608, 1.0)), // X-Ray Blue
                     ..default()
                 })
                 .with_children(|parent| {
@@ -190,7 +190,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 height: Val::Percent(100.0),
                                 ..default()
                             },
-                            background_color: BackgroundColor(Color::srgb(0.2, 0.8, 0.4)),
+                            background_color: BackgroundColor(Color::srgb(0.2, 1.0, 0.596)), // Radiation Green Glow
                             ..default()
                         })
                         .insert(ProgressBar);
@@ -202,7 +202,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     "Loading... 0%",
                     TextStyle {
                         font_size: 24.0,
-                        color: Color::srgb(0.8, 0.8, 0.8),
+                        color: Color::srgb(0.784, 0.8, 0.831), // Ultrasound Gray
                         ..default()
                     },
                 ))
