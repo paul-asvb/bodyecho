@@ -48,6 +48,16 @@ trunk serve --open
 trunk build --release
 ```
 
+## Claude Code Commands
+
+### /pixellab
+Generate game assets using the PixelLab AI API. This command helps create:
+- **Characters**: Directional character sprites (4 or 8 directions) with customizable proportions
+- **Terrain**: Wang tilesets for seamless terrain, sidescroller tiles, or isometric tiles
+- **Map Objects**: Transparent-background objects for map placement
+
+The command will guide you through the generation process, handle the async API workflow, and save assets to the appropriate directories with proper metadata.
+
 ## Important Implementation Details
 - Animation frame index resets to 0 when state or direction changes
 - Movement is normalized for diagonal movement to maintain consistent speed
