@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use bevy_ecs_tilemap::prelude::*;
+use rand::Rng;
 use std::collections::HashMap;
 
 const PLAYER_MOVEMENT_SPEED: f32 = 80.0;
@@ -19,6 +21,7 @@ fn main() {
             }),
             ..default()
         }))
+        .add_plugins(TilemapPlugin)
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -35,25 +38,60 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
 
-    // Spawn repeating background tiles in a grid
-    let tile_texture = asset_server.load("tiles/hospital_floor_tile.png");
-    let tile_scale = 0.1;
-    let tile_size = 1024.0 * tile_scale; // 1024px at 0.1 scale = 102.4 units
-    let grid_size = 30; // 30x30 grid of tiles
+    // Create tilemap
+    let texture_handle: Handle<Image> = asset_server.load("tiles/hospital_floor_tile.png");
 
-    for x in -grid_size..grid_size {
-        for y in -grid_size..grid_size {
-            commands.spawn(SpriteBundle {
-                texture: tile_texture.clone(),
-                transform: Transform::from_xyz(
-                    x as f32 * tile_size,
-                    y as f32 * tile_size,
-                    -10.0,
-                ).with_scale(Vec3::splat(tile_scale)),
-                ..default()
-            });
+    let map_size = TilemapSize { x: 60, y: 60 };
+    let tile_size = TilemapTileSize { x: 102.4, y: 102.4 }; // 1024px at 0.1 scale
+    let grid_size: TilemapGridSize = tile_size.into();
+    let map_type = TilemapType::default();
+
+    // Create tilemap entity
+    let tilemap_entity = commands.spawn_empty().id();
+
+    // Number of different tile variations (you can adjust this based on your assets)
+    let num_tile_variations = 10;
+    let mut rng = rand::thread_rng();
+
+    // Fill the tilemap with random tiles
+    let mut tile_storage = TileStorage::empty(map_size);
+    for x in 0..map_size.x {
+        for y in 0..map_size.y {
+            let tile_pos = TilePos { x, y };
+
+            // Randomly select a tile texture index
+            let texture_index = rng.gen_range(0..num_tile_variations);
+
+            let tile_entity = commands
+                .spawn(TileBundle {
+                    position: tile_pos,
+                    tilemap_id: TilemapId(tilemap_entity),
+                    texture_index: TileTextureIndex(texture_index),
+                    ..Default::default()
+                })
+                .id();
+            tile_storage.set(&tile_pos, tile_entity);
         }
     }
+
+    // Center the tilemap
+    let grid_size_vec: Vec2 = grid_size.into();
+    let transform = Transform::from_translation(Vec3::new(
+        -(map_size.x as f32 * grid_size_vec.x) / 2.0,
+        -(map_size.y as f32 * grid_size_vec.y) / 2.0,
+        -10.0,
+    ));
+
+    commands.entity(tilemap_entity).insert(TilemapBundle {
+        grid_size,
+        map_type,
+        size: map_size,
+        storage: tile_storage,
+        texture: TilemapTexture::Single(texture_handle),
+        tile_size,
+        transform,
+        ..Default::default()
+    });
 
     // Base path for character assets
     let base_path = "characters/582b204c-ad0f-401d-b99a-97ecaf9a0abe/";
