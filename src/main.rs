@@ -42,7 +42,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let texture_handle: Handle<Image> = asset_server.load("tiles/hospital_floor_tile.png");
 
     let map_size = TilemapSize { x: 60, y: 60 };
-    let tile_size = TilemapTileSize { x: 102.4, y: 102.4 }; // 1024px at 0.1 scale
+    let tile_size = TilemapTileSize { x: 100.0, y: 100.0 };
     let grid_size: TilemapGridSize = tile_size.into();
     let map_type = TilemapType::default();
 
@@ -53,14 +53,83 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let num_tile_variations = 10;
     let mut rng = rand::thread_rng();
 
-    // Fill the tilemap with random tiles
+    // Fill the tilemap with a hospital layout (Rooms & Corridors)
     let mut tile_storage = TileStorage::empty(map_size);
+    
+    // 1. Initialize with empty/wall (using a specific index, e.g., 9)
+    // We'll use index 0-8 for floor variations, 9 for walls
+    let wall_texture_index = 9;
+    
+    let mut map_grid = vec![vec![wall_texture_index; map_size.y as usize]; map_size.x as usize];
+
+    // 2. Generate Rooms
+    let mut rooms: Vec<Rect> = Vec::new();
+    let num_rooms = 15;
+    
+    for _ in 0..num_rooms {
+        let w = rng.gen_range(6..15);
+        let h = rng.gen_range(6..15);
+        let x = rng.gen_range(2..(map_size.x as usize - w - 2));
+        let y = rng.gen_range(2..(map_size.y as usize - h - 2));
+        
+        let new_room = Rect::new(x as f32, y as f32, (x + w) as f32, (y + h) as f32);
+        
+        // Check overlap
+        let mut intersects = false;
+        for other in &rooms {
+            if !((new_room.min.x >= other.max.x) || (new_room.max.x <= other.min.x) ||
+                 (new_room.min.y >= other.max.y) || (new_room.max.y <= other.min.y)) {
+                intersects = true; 
+                break;
+            }
+        }
+        
+        if !intersects {
+            rooms.push(new_room);
+            // Carve room
+            for i in x..(x + w) {
+                for j in y..(y + h) {
+                    map_grid[i][j] = rng.gen_range(0..5); // Floor variant
+                }
+            }
+        }
+    }
+    
+    // 3. Connect rooms with corridors
+    for i in 0..rooms.len() - 1 {
+        let room_a = rooms[i];
+        let room_b = rooms[i + 1];
+        
+        let center_a = room_a.center();
+        let center_b = room_b.center();
+        
+        let (x1, y1) = (center_a.x as usize, center_a.y as usize);
+        let (x2, y2) = (center_b.x as usize, center_b.y as usize);
+        
+        // Horizontal corridor
+        let start_x = x1.min(x2);
+        let end_x = x1.max(x2);
+        for x in start_x..=end_x {
+            map_grid[x][y1] = rng.gen_range(0..5);
+            // Widen corridor
+            if y1 + 1 < map_size.y as usize { map_grid[x][y1+1] = rng.gen_range(0..5); }
+        }
+        
+        // Vertical corridor
+        let start_y = y1.min(y2);
+        let end_y = y1.max(y2);
+        for y in start_y..=end_y {
+            map_grid[x2][y] = rng.gen_range(0..5);
+            // Widen corridor
+            if x2 + 1 < map_size.x as usize { map_grid[x2+1][y] = rng.gen_range(0..5); }
+        }
+    }
+
+    // 4. Spawn tiles
     for x in 0..map_size.x {
         for y in 0..map_size.y {
             let tile_pos = TilePos { x, y };
-
-            // Randomly select a tile texture index
-            let texture_index = rng.gen_range(0..num_tile_variations);
+            let texture_index = map_grid[x as usize][y as usize];
 
             let tile_entity = commands
                 .spawn(TileBundle {
